@@ -20,6 +20,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void initState() {
+    super.initState();
     getCurrentUser();
   }
 
@@ -35,22 +36,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // void getMessage() async {
-  //   await for (var snapshot
-  //       in _firestore.collection('messages').snapshots()) {
-  //     for (var message in snapshot.docs) {
-  //       print(message.data());
-  //     }
-  //   }
-  // }
-
-  void messagesStream() async {
-    final snapshots = await _firestore.collection('messages').get();
-    for (var message in snapshots.docs) {
-      print(message.data());
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,9 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: Icon(Icons.close),
             onPressed: () {
-              // _auth.signOut();
-              // Navigator.pop(context);
-              messagesStream();
+              _auth.signOut();
+              Navigator.pop(context);
             },
           ),
         ],
@@ -96,7 +80,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       _firestore.collection('messages').add({
                         'text': messageText,
                         'sender': loggedInUser?.email,
+                        'createdAt': FieldValue
+                            .serverTimestamp(), // 👈 مهم جدًا
                       });
+
                       print('pressed');
                     },
                     child: Text('Send', style: kSendButtonTextStyle),
@@ -118,21 +105,21 @@ class MessageStream extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('messages').snapshots(),
+        stream: _firestore
+            .collection('messages')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
         builder: (context, snapshot) {
-          // 1️⃣ While loading
           if (!snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(),
             );
           }
 
-          // 2️⃣ We are sure snapshot.data is not null here
           final messages = snapshot.data!.docs;
           List<Widget> messageWidgets = [];
 
           for (var message in messages) {
-            // message.data() is Object? so we cast it
             final data = message.data() as Map<String, dynamic>;
             final messageText = data['text'] ?? '';
             final messageSender = data['sender'] ?? 'Unknown';
@@ -152,6 +139,7 @@ class MessageStream extends StatelessWidget {
 
           // 3️⃣ Return a widget with the messages
           return ListView(
+            reverse: true,
             padding: const EdgeInsets.symmetric(
                 horizontal: 10, vertical: 20),
             children: messageWidgets,
@@ -179,29 +167,38 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Text(
             sender,
             style: TextStyle(
               fontSize: 12.0,
-              color: isMe ? Colors.black54 : Colors.blueGrey,
+              color: Colors.blueGrey,
             ),
           ),
           Material(
             elevation: 5.0,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(30.0),
-              bottomLeft: Radius.circular(30.0),
-              bottomRight: Radius.circular(30.0),
-            ),
+            borderRadius: isMe
+                ? BorderRadius.only(
+                    topLeft: Radius.circular(30.0),
+                    bottomLeft: Radius.circular(30.0),
+                    bottomRight: Radius.circular(30.0),
+                  )
+                : BorderRadius.only(
+                    topRight: Radius.circular(30.0),
+                    bottomLeft: Radius.circular(30.0),
+                    bottomRight: Radius.circular(30.0),
+                  ),
             color: isMe ? Colors.lightBlueAccent : Colors.white,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                   vertical: 10.0, horizontal: 20.0),
               child: Text(
                 '$message',
-                style: const TextStyle(fontSize: 18.0),
+                style: TextStyle(
+                    fontSize: 18.0,
+                    color: isMe ? Colors.white : Colors.black54),
               ),
             ),
           ),

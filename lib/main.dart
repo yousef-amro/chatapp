@@ -6,18 +6,32 @@ import 'package:chatapp/screens/login_screen.dart';
 import 'package:chatapp/screens/registration_screen.dart';
 import 'package:chatapp/screens/chat_screen.dart';
 
-void main() async {
+import 'firebase_options.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // 👈 THIS FIXES THE ERROR
-  runApp(FlashChat());
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') {
+      rethrow;
+    }
+  }
+
+  runApp(const FlashChat());
 }
 
 class FlashChat extends StatelessWidget {
+  const FlashChat({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData.dark().copyWith(
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           bodyLarge: TextStyle(color: Colors.black54),
         ),
       ),
